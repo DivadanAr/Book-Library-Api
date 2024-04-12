@@ -69,8 +69,10 @@ func BukuGet(c *fiber.Ctx) error {
 
 func BukuDetail(c *fiber.Ctx) error {
 	var (
-		buku    []response.Buku
-		rowbuku response.Buku
+		buku        []response.Buku
+		rowbuku     response.Buku
+		kategori    []response.Kategori
+		rowkategori response.Kategori
 	)
 
 	db := database.ConnectDB()
@@ -78,8 +80,11 @@ func BukuDetail(c *fiber.Ctx) error {
 	ctx := context.Background()
 
 	bukuQry, err := db.QueryContext(ctx, `
-	SELECT Id, Judul, Penulis, Penerbit, Cover, BackCover, JumlahHalaman, TahunTerbit , CreatedAt
-	FROM buku WHERE Id = ?
+	SELECT buku.Id, buku.Judul, buku.Penulis, buku.Penerbit, buku.Cover, buku.BackCover, buku.JumlahHalaman, buku.TahunTerbit, kategori.Kategori, kategori.Id
+	FROM kategori_buku
+	JOIN buku ON buku.Id = kategori_buku.BukuId
+	JOIN kategori ON  kategori.Id = kategori_buku.KategoriId
+	WHERE buku.Id = ?
 	`, c.Params("id"))
 	if err != nil {
 		res := helpers.GetResponse(500, nil, err)
@@ -88,17 +93,19 @@ func BukuDetail(c *fiber.Ctx) error {
 
 	defer bukuQry.Close()
 	for bukuQry.Next() {
-		err := bukuQry.Scan(&rowbuku.Id, &rowbuku.Judul, &rowbuku.Penulis, &rowbuku.Penerbit, &rowbuku.Cover, &rowbuku.BackCover, &rowbuku.JumlahHalaman, &rowbuku.TahunTerbit, &rowbuku.CreateAt)
+		err := bukuQry.Scan(&rowbuku.Id, &rowbuku.Judul, &rowbuku.Penulis, &rowbuku.Penerbit, &rowbuku.Cover, &rowbuku.BackCover, &rowbuku.JumlahHalaman, &rowbuku.TahunTerbit, &rowkategori.Kategori, &rowkategori.Id)
 		if err != nil {
 			res := helpers.GetResponse(500, nil, err)
 			return c.Status(res.Status).JSON(res)
 		}
 
 		buku = append(buku, rowbuku)
+		kategori = append(kategori, rowkategori)
 	}
 
 	res := helpers.GetResponse(200, fiber.Map{
-		"Buku": buku,
+		"Buku":     buku,
+		"Kategori": kategori,
 	}, nil)
 	return c.JSON(res)
 }

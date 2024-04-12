@@ -373,6 +373,7 @@ func SetupPhotoProfile(c *fiber.Ctx) error {
 
 func Login(c *fiber.Ctx) error {
 	var users response.Users
+	var role response.Roles
 	db := database.ConnectDB()
 	defer db.Close()
 	ctx := context.Background()
@@ -383,10 +384,10 @@ func Login(c *fiber.Ctx) error {
 	}
 
 	errlog := db.QueryRowContext(ctx, `
-        SELECT id, username, password, email
-        FROM users
+        SELECT users.id, users.username, users.password, users.email, roles.id, roles.NameRole
+        FROM users JOIN user_role ON users.Id = user_role.UserId JOIN roles ON user_role.RolesId = roles.Id
         WHERE email = ? OR username = ?;
-        `, account.Email, account.Username).Scan(&users.Id, &users.Username, &users.Password, &users.Email)
+        `, account.Email, account.Username).Scan(&users.Id, &users.Username, &users.Password, &users.Email, &role.Id, &role.NameRole)
 
 	if errlog == sql.ErrNoRows {
 		res := helpers.GetResponse(401, nil, errors.New("unauthorized"))
@@ -405,6 +406,8 @@ func Login(c *fiber.Ctx) error {
 		"userid":   users.Id,
 		"username": users.Username,
 		"email":    users.Email,
+		"roleid":   role.Id,
+		"role":     role.NameRole,
 		"exp":      time.Now().Add(time.Hour * 6).Unix(),
 	}
 
@@ -418,6 +421,8 @@ func Login(c *fiber.Ctx) error {
 		"UserId":   users.Id,
 		"Username": users.Username,
 		"Email":    users.Email,
+		"RoleId":   role.Id,
+		"Role":     role.NameRole,
 		"Token":    t,
 	}, nil)
 	return c.Status(res.Status).JSON(res)

@@ -42,7 +42,7 @@ func main() {
 	routes.Init(app)
 
 	if env != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatalf("Error loading .env file: %v", env)
 	}
 
 	port := os.Getenv("PORT")

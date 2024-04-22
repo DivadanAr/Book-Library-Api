@@ -29,6 +29,9 @@ type Buku struct {
 	Penerbit      string    `json:"penerbit"`
 	Cover         string    `json:"cover"`
 	BackCover     string    `json:"back_cover"`
+	StokBuku      string    `json:"stock_buku"`
+	Deskripsi     *string   `json:"deskripsi"`
+	Rating     *string   `json:"rating"`
 	JumlahHalaman int       `json:"jumlah_halaman"`
 	TahunTerbit   int       `json:"tahun_terbit"`
 	CreateAt      time.Time `json:"create_at"`
@@ -59,3 +62,11 @@ type UlasanBuku struct {
 	Ulasan string `json:"ulasan"`
 	Rating int    `json:"rating"`
 }
+
+// type UlasanBuku struct {
+// 	Id     int64  `json:"id"`
+// 	UserId int    `json:"user_id"`
+// 	BukuId int    `json:"buku_id"`
+// 	Ulasan string `json:"ulasan"`
+// 	Rating int    `json:"rating"`
+// }

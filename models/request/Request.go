@@ -27,6 +27,8 @@ type Buku struct {
 	Cover         string    `json:"cover"`
 	BackCover     string    `json:"back_cover"`
 	JumlahHalaman int       `json:"jumlah_halaman"`
+	StokBuku      string    `json:"stok_buku"`
+	Deskripsi      string    `json:"deskripsi"`
 	TahunTerbit   int       `json:"tahun_terbit"`
 	KategoriId    int       `json:"kategori_id"`
 	CreateAt      time.Time `json:"create_at"`

@@ -138,7 +138,7 @@ func KategoriBukuPut(c *fiber.Ctx) error {
 	}
 
 	_, err := db.ExecContext(ctx, `
-	UPDATE kategori_buku SET BukuId = ?, KategoriId = ? WHERE Id = ?`, kategoriBuku.BukuId, kategoriBuku.KategoriId, c.Params("id"))
+	UPDATE kategori_buku SET KategoriId = ? WHERE BukuId = ?`, kategoriBuku.KategoriId, c.Params("id"))
 
 	if err != nil {
 		res := helpers.GetResponse(500, nil, err)

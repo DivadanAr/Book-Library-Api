@@ -27,14 +27,18 @@ func BukuGet(c *fiber.Ctx) error {
 
 	search = c.Query("Search")
 	if search != "" {
-		cond += ` WHERE (Judul LIKE '%` + search + `%' OR Penulis LIKE '%` + search + `%' OR Penerbit LIKE '%` + search + `%')`
+		cond += ` AND (buku.Judul LIKE '%` + search + `%' OR buku.Penulis LIKE '%` + search + `%' OR buku.Penerbit LIKE '%` + search + `%')`
 	}
 
 	bukuQry, err := db.QueryContext(ctx, `
-	SELECT Id, Judul, Penulis, Penerbit, Cover, BackCover, JumlahHalaman, TahunTerbit 
+	SELECT buku.Id, buku.Judul, buku.Penulis, buku.Penerbit, buku.Cover, buku.BackCover, buku.JumlahHalaman, buku.TahunTerbit, buku.StokBuku, buku.Deskripsi, AVG(ulasan_buku.Rating) AS AvgRating
 	FROM buku 
-	`+cond+
-		helpers.Limit(c.Query("Limit"))+" "+helpers.Offset(c.Query("Offset"))+`;`)
+	LEFT JOIN ulasan_buku ON buku.Id = ulasan_buku.BukuId
+	WHERE buku.StokBuku != '0'
+	`+cond+`
+	GROUP BY buku.Id, buku.Judul, buku.Penulis, buku.Penerbit, buku.Cover, buku.BackCover, buku.JumlahHalaman, buku.TahunTerbit, buku.StokBuku, buku.Deskripsi
+	`+helpers.Limit(c.Query("Limit"))+" "+helpers.Offset(c.Query("Offset"))+`;`)
+
 	if err != nil {
 		res := helpers.GetResponse(500, nil, err)
 		return c.Status(res.Status).JSON(res)
@@ -42,7 +46,7 @@ func BukuGet(c *fiber.Ctx) error {
 
 	defer bukuQry.Close()
 	for bukuQry.Next() {
-		err := bukuQry.Scan(&rowbuku.Id, &rowbuku.Judul, &rowbuku.Penulis, &rowbuku.Penerbit, &rowbuku.Cover, &rowbuku.BackCover, &rowbuku.JumlahHalaman, &rowbuku.TahunTerbit)
+		err := bukuQry.Scan(&rowbuku.Id, &rowbuku.Judul, &rowbuku.Penulis, &rowbuku.Penerbit, &rowbuku.Cover, &rowbuku.BackCover, &rowbuku.JumlahHalaman, &rowbuku.TahunTerbit, &rowbuku.StokBuku, &rowbuku.Deskripsi, &rowbuku.Rating)
 		if err != nil {
 			res := helpers.GetResponse(500, nil, err)
 			return c.Status(res.Status).JSON(res)
@@ -54,11 +58,13 @@ func BukuGet(c *fiber.Ctx) error {
 	err = db.QueryRowContext(ctx, `
 		SELECT COUNT(buku.Id) 
 		FROM buku
+		WHERE StokBuku != '0'
 		`).Scan(&count)
 	if err != nil {
 		res := helpers.GetResponse(500, nil, err)
 		return c.Status(res.Status).JSON(res)
 	}
+	
 
 	res := helpers.GetResponse(200, fiber.Map{
 		"Buku":  buku,
@@ -80,7 +86,7 @@ func BukuDetail(c *fiber.Ctx) error {
 	ctx := context.Background()
 
 	bukuQry, err := db.QueryContext(ctx, `
-	SELECT buku.Id, buku.Judul, buku.Penulis, buku.Penerbit, buku.Cover, buku.BackCover, buku.JumlahHalaman, buku.TahunTerbit, kategori.Kategori, kategori.Id
+	SELECT buku.Id, buku.Judul, buku.Penulis, buku.Penerbit, buku.Cover, buku.BackCover, buku.JumlahHalaman, buku.TahunTerbit, buku.StokBuku, buku.Deskripsi, kategori.Kategori, kategori.Id
 	FROM kategori_buku
 	JOIN buku ON buku.Id = kategori_buku.BukuId
 	JOIN kategori ON  kategori.Id = kategori_buku.KategoriId
@@ -93,7 +99,7 @@ func BukuDetail(c *fiber.Ctx) error {
 
 	defer bukuQry.Close()
 	for bukuQry.Next() {
-		err := bukuQry.Scan(&rowbuku.Id, &rowbuku.Judul, &rowbuku.Penulis, &rowbuku.Penerbit, &rowbuku.Cover, &rowbuku.BackCover, &rowbuku.JumlahHalaman, &rowbuku.TahunTerbit, &rowkategori.Kategori, &rowkategori.Id)
+		err := bukuQry.Scan(&rowbuku.Id, &rowbuku.Judul, &rowbuku.Penulis, &rowbuku.Penerbit, &rowbuku.Cover, &rowbuku.BackCover, &rowbuku.JumlahHalaman, &rowbuku.TahunTerbit, &rowbuku.StokBuku, &rowbuku.Deskripsi, &rowkategori.Kategori, &rowkategori.Id)
 		if err != nil {
 			res := helpers.GetResponse(500, nil, err)
 			return c.Status(res.Status).JSON(res)
@@ -107,6 +113,50 @@ func BukuDetail(c *fiber.Ctx) error {
 		"Buku":     buku,
 		"Kategori": kategori,
 	}, nil)
+	return c.JSON(res)
+}
+
+func BookmarkDetail(c *fiber.Ctx) error {
+	var (
+		count int
+		bukuId *string
+	)
+
+	db := database.ConnectDB()
+	defer db.Close()
+	ctx := context.Background()
+
+	err := db.QueryRowContext(ctx, `
+		SELECT COUNT(*), BukuId 
+		FROM koleksi_pribadi
+		WHERE UserId = ? AND BukuId = ?
+		`, c.Locals("UserId"), c.Params("id")).Scan(&count, &bukuId)
+
+	if err != nil {
+		res := helpers.GetResponse(500, nil, err)
+		return c.Status(res.Status).JSON(res)
+	}
+	res := helpers.GetResponse(200, fiber.Map{
+		"total": count,
+		"buku_id": bukuId,
+	}, nil)
+	return c.JSON(res)
+}
+
+func BookmarkDelete(c *fiber.Ctx) error {
+	db := database.ConnectDB()
+	defer db.Close()
+	ctx := context.Background()
+
+	_, err := db.ExecContext(ctx, `
+	DELETE FROM koleksi_pribadi WHERE UserId = ? AND BukuId = ?
+	`, c.Locals("UserId"), c.Params("id"))
+	if err != nil {
+		res := helpers.GetResponse(500, nil, err)
+		return c.Status(res.Status).JSON(res)
+	}
+
+	res := helpers.GetResponse(200, "Delete Success", nil)
 	return c.JSON(res)
 }
 
@@ -144,9 +194,9 @@ func BukuPost(c *fiber.Ctx) error {
 	c.SaveFile(file, "public/uploads/cover/"+backCoverName)
 
 	qry, errBuku := db.ExecContext(ctx, `
-	INSERT INTO buku (Judul, Penulis, Penerbit, Cover, BackCover, JumlahHalaman, TahunTerbit)
-	VALUES (?, ?, ?, ?, ?, ?, ? )
-`, buku.Judul, buku.Penulis, buku.Penerbit, coverName, backCoverName, buku.JumlahHalaman, buku.TahunTerbit)
+	INSERT INTO buku (Judul, Penulis, Penerbit, Cover, BackCover, JumlahHalaman, TahunTerbit, StokBuku, Deskripsi)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`, buku.Judul, buku.Penulis, buku.Penerbit, coverName, backCoverName, buku.JumlahHalaman, buku.TahunTerbit, buku.StokBuku, buku.Deskripsi)
 
 	if errBuku != nil {
 		res := helpers.GetResponse(500, nil, errBuku)
@@ -172,6 +222,8 @@ func BukuPost(c *fiber.Ctx) error {
 		"back_cover":     backCoverName,
 		"jumlah_halaman": buku.JumlahHalaman,
 		"tahun_terbit":   buku.TahunTerbit,
+		"stok_buku":      buku.StokBuku,
+		"deskripsi":      buku.Deskripsi,
 		"kategori_id":    buku.KategoriId,
 		"created_at":     buku.CreateAt,
 		"update_at":      buku.UpdateAt,
@@ -189,8 +241,44 @@ func BukuPut(c *fiber.Ctx) error {
 		return c.JSON(helpers.GetResponse(500, nil, err))
 	}
 
+	coverName := buku.Cover
+	backCoverName := buku.BackCover
+	file, errFile := c.FormFile("cover")
+
+
+	if errFile != nil {
+		_, err := db.ExecContext(ctx, `
+		UPDATE buku SET Judul = ?, Penulis = ?, Penerbit = ?, JumlahHalaman = ?, TahunTerbit = ?, StokBuku = ?, Deskripsi = ? WHERE Id = ?`, buku.Judul, buku.Penulis, buku.Penerbit, buku.JumlahHalaman, buku.TahunTerbit, buku.StokBuku, buku.Deskripsi, c.Params("id"))
+	
+		if err != nil {
+			res := helpers.GetResponse(500, nil, err)
+			return c.Status(res.Status).JSON(res)
+		}
+	
+		buku.Id, _ = strconv.ParseInt(c.Params("id"), 10, 64)
+	
+		res := helpers.GetResponse(200, buku, nil)
+		return c.JSON(res)
+		}
+
+	fileName := file.Filename
+	extension := fileName[strings.LastIndex(fileName, "."):]
+
+	timestamp := time.Now().Format("20060102150405")
+	coverName = "cover-" + strings.ReplaceAll(buku.Judul, " ", "") + "-" + timestamp + extension
+
+	c.SaveFile(file, "public/uploads/cover/"+coverName)
+
+	fileNameBackCover := file.Filename
+	extensionBackCover := fileNameBackCover[strings.LastIndex(fileNameBackCover, "."):]
+
+	timestampBackCover := time.Now().Format("20060102150405")
+	backCoverName = "backcover-" + strings.ReplaceAll(buku.Judul, " ", "") + "-" + timestampBackCover + extensionBackCover
+
+	c.SaveFile(file, "public/uploads/cover/"+backCoverName)
+
 	_, err := db.ExecContext(ctx, `
-	UPDATE buku SET Judul = ?, Penulis = ?, Penerbit = ?, Cover = ?, BackCover = ?, JumlahHalaman = ?, TahunTerbit = ? WHERE Id = ?`, buku.Judul, buku.Penulis, buku.Penerbit, buku.Cover, buku.BackCover, buku.JumlahHalaman, buku.TahunTerbit, c.Params("id"))
+	UPDATE buku SET Judul = ?, Penulis = ?, Penerbit = ?, Cover = ?, BackCover = ?, JumlahHalaman = ?, TahunTerbit = ?, StokBuku = ?, Deskripsi = ? WHERE Id = ?`, buku.Judul, buku.Penulis, buku.Penerbit, coverName, backCoverName, buku.JumlahHalaman, buku.TahunTerbit, buku.StokBuku, buku.Deskripsi, c.Params("id"))
 
 	if err != nil {
 		res := helpers.GetResponse(500, nil, err)
@@ -202,6 +290,8 @@ func BukuPut(c *fiber.Ctx) error {
 	res := helpers.GetResponse(200, buku, nil)
 	return c.JSON(res)
 }
+
+
 
 func BukuDelete(c *fiber.Ctx) error {
 	db := database.ConnectDB()

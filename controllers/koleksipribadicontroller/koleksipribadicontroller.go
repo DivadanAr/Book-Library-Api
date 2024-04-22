@@ -12,8 +12,8 @@ import (
 
 func KoleksiPribadiGet(c *fiber.Ctx) error {
 	var (
-		koleksiPribadi    []response.KoleksiPribadi
-		rowkoleksiPribadi response.KoleksiPribadi
+		koleksiPribadi    []response.Buku
+		rowkoleksiPribadi response.Buku
 		cond              string
 		count             int
 		search            string
@@ -29,8 +29,8 @@ func KoleksiPribadiGet(c *fiber.Ctx) error {
 	}
 
 	koleksiPribadiQry, err := db.QueryContext(ctx, `
-	SELECT Id, BukuId, UserId
-	FROM koleksi_pribadi
+	SELECT buku.Id, buku.Judul, buku.Penulis, buku.Penerbit, buku.Cover, buku.BackCover, buku.JumlahHalaman, buku.TahunTerbit, buku.StokBuku, buku.Deskripsi
+	FROM koleksi_pribadi JOIN buku ON buku.Id = koleksi_pribadi.BukuId
 	`+cond+
 		helpers.Limit(c.Query("Limit"))+" "+helpers.Offset(c.Query("Offset"))+`;`)
 	if err != nil {
@@ -40,7 +40,7 @@ func KoleksiPribadiGet(c *fiber.Ctx) error {
 
 	defer koleksiPribadiQry.Close()
 	for koleksiPribadiQry.Next() {
-		err := koleksiPribadiQry.Scan(&rowkoleksiPribadi.Id, &rowkoleksiPribadi.BukuId, &rowkoleksiPribadi.UserId)
+		err := koleksiPribadiQry.Scan(&rowkoleksiPribadi.Id, &rowkoleksiPribadi.Judul, &rowkoleksiPribadi.Penulis, &rowkoleksiPribadi.Penerbit, &rowkoleksiPribadi.Cover, &rowkoleksiPribadi.BackCover, &rowkoleksiPribadi.JumlahHalaman, &rowkoleksiPribadi.TahunTerbit, &rowkoleksiPribadi.StokBuku, &rowkoleksiPribadi.Deskripsi)
 		if err != nil {
 			res := helpers.GetResponse(500, nil, err)
 			return c.Status(res.Status).JSON(res)
@@ -51,7 +51,7 @@ func KoleksiPribadiGet(c *fiber.Ctx) error {
 
 	err = db.QueryRowContext(ctx, `
 		SELECT COUNT(koleksi_pribadi.Id)
-		FROM koleksi_pribadi
+		FROM koleksi_pribadi JOIN buku ON buku.Id = koleksi_pribadi.BukuId
 		`).Scan(&count)
 	if err != nil {
 		res := helpers.GetResponse(500, nil, err)
@@ -73,8 +73,8 @@ func KoleksiPribadiGet(c *fiber.Ctx) error {
 
 func KoleksiPribadiDetail(c *fiber.Ctx) error {
 	var (
-		koleksiPribadi    []response.KoleksiPribadi
-		rowkoleksiPribadi response.KoleksiPribadi
+		koleksiPribadi    []response.Buku
+		rowkoleksiPribadi response.Buku
 	)
 
 	db := database.ConnectDB()
@@ -82,9 +82,9 @@ func KoleksiPribadiDetail(c *fiber.Ctx) error {
 	ctx := context.Background()
 
 	koleksiPribadiQry, err := db.QueryContext(ctx, `
-	SELECT Id, BukuId, UserId 
-	FROM koleksi_pribadi WHERE Id = ?
-	`, c.Params("id"))
+	SELECT buku.Id, buku.Judul, buku.Penulis, buku.Penerbit, buku.Cover, buku.BackCover, buku.JumlahHalaman, buku.TahunTerbit, buku.StokBuku, buku.Deskripsi
+	FROM koleksi_pribadi JOIN buku ON buku.Id = koleksi_pribadi.BukuId WHERE koleksi_pribadi.UserId = ?
+	`, c.Locals("UserId"))
 	if err != nil {
 		res := helpers.GetResponse(500, nil, err)
 		return c.Status(res.Status).JSON(res)
@@ -92,7 +92,7 @@ func KoleksiPribadiDetail(c *fiber.Ctx) error {
 
 	defer koleksiPribadiQry.Close()
 	for koleksiPribadiQry.Next() {
-		err := koleksiPribadiQry.Scan(&rowkoleksiPribadi.Id, &rowkoleksiPribadi.BukuId, &rowkoleksiPribadi.UserId)
+		err := koleksiPribadiQry.Scan(&rowkoleksiPribadi.Id, &rowkoleksiPribadi.Judul, &rowkoleksiPribadi.Penulis, &rowkoleksiPribadi.Penerbit, &rowkoleksiPribadi.Cover, &rowkoleksiPribadi.BackCover, &rowkoleksiPribadi.JumlahHalaman, &rowkoleksiPribadi.TahunTerbit, &rowkoleksiPribadi.StokBuku, &rowkoleksiPribadi.Deskripsi)
 		if err != nil {
 			res := helpers.GetResponse(500, nil, err)
 			return c.Status(res.Status).JSON(res)

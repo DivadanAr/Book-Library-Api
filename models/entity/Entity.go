@@ -54,6 +54,8 @@ type Buku struct {
 	Cover          string         `json:"cover" gorm:"type:varchar(255)"`
 	BackCover      string         `json:"back_cover" gorm:"type:varchar(255) NULL"`
 	JumlahHalaman  int            `json:"jumlah_halaman" gorm:"type:int(11)"`
+	StokBuku       string         `json:"stok_buku" gorm:"type:varchar(255)"`
+	Deskripsi      string         `json:"deskripsi" gorm:"type:text"`
 	TahunTerbit    int            `json:"tahun_terbit" gorm:"type:int(11)"`
 	CreateAt       time.Time      `json:"create_at" gorm:"type:TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"`
 	UpdateAt       time.Time      `json:"update_at" gorm:"type:TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"`
@@ -117,13 +119,14 @@ func (UlasanBuku) TableName() string {
 }
 
 type Peminjaman struct {
-	Id       int32     `json:"id" gorm:"primaryKey"`
-	BukuId   int32     `json:"buku_id"`
-	UserId   int32     `json:"user_id"`
-	Ulasan   string    `json:"ulasan" grom:"type:text"`
-	Rating   string    `json:"rating" grom:"type:int(11)"`
-	CreateAt time.Time `json:"create_at" gorm:"type:TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"`
-	UpdateAt time.Time `json:"update_at" gorm:"type:TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"`
+	Id                  int32     `json:"id" gorm:"primaryKey"`
+	BukuId              int32     `json:"buku_id"`
+	UserId              int32     `json:"user_id"`
+	TanggalPeminjaman   time.Time `json:"tanggal_peminjaman" grom:"type:DATETIME"`
+	TanggalPengembalian time.Time `json:"tanggal_pengembalian" grom:"type:DATETIME"`
+	StatusPeminjaman    string    `json:"status_peminjaman" grom:"type:varchar(255)"`
+	CreatedAt           time.Time `json:"created_at" gorm:"type:TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"`
+	UpdatedAt           time.Time `json:"updated_at" gorm:"type:TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"`
 }
 
 func (Peminjaman) TableName() string {
